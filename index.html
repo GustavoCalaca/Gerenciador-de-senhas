@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerenciador de Senhas</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@700&display=swap" rel="stylesheet">
+  </head>
+<body>
+  <h1>Gerenciador de Senhas</h1>
+
+  <!-- Tela de Login -->
+  <div id="login-screen">
+    <form id="login-form">
+      <h2>Login</h2>
+      <input type="text" id="username" placeholder="Nome de Usuário ou E-mail" required>
+      <input type="password" id="login-password" placeholder="Senha" required>
+      <button type="submit">Entrar</button>
+      <p>Não tem uma conta? <button type="button" id="show-register">Cadastre-se</button></p>
+    </form>
+  </div>
+
+  <!-- Tela de Cadastro -->
+  <div id="register-screen" style="display: none;">
+    <form id="register-form">
+      <h2>Cadastro</h2>
+      <input type="text" id="register-username" placeholder="Nome de Usuário ou E-mail" required>
+      <input type="password" id="register-password" placeholder="Senha" required>
+      <button type="submit">Cadastrar</button>
+      <p>Já tem uma conta? <button type="button" id="show-login">Faça login</button></p>
+    </form>
+  </div>
+
+  <!-- Gerenciador de Senhas -->
+  <div id="password-manager" style="display: none;">
+    <button id="logout-button">Sair</button>
+    <form id="password-form">
+      <input type="text" id="site-name" placeholder="Nome do site ou serviço" required>
+      <input type="text" id="password" placeholder="Senha" required>
+      <select id="category">
+        <option value="social">Redes Sociais</option>
+        <option value="email">E-mail</option>
+        <option value="bank">Banco</option>
+        <option value="other">Outros</option>
+      </select>
+      <input type="text" id="generated-password" placeholder="Senha Gerada" readonly>
+      <button type="button" id="generate-password">Gerar Senha Forte</button>
+      <button type="submit">Adicionar Senha</button>
+    </form>
+
+    <h2>Senhas Salvas</h2>
+    <div id="password-list"></div>
+  </div>
+
+  <script>
+    // Lista de usuários cadastrados (armazenar no localStorage)
+    let users = JSON.parse(localStorage.getItem("users")) || [];
+
+    // Verificar se há um usuário logado
+    function checkLoggedInUser() {
+      const loggedInUser = localStorage.getItem("loggedInUser");
+      if (loggedInUser) {
+        document.getElementById("login-screen").style.display = "none";
+        document.getElementById("password-manager").style.display = "block";
+        displayPasswords();
+      }
+    }
+
+    checkLoggedInUser();
+
+    // Função para realizar login
+    document.getElementById("login-form").addEventListener("submit", function (event) {
+      event.preventDefault();
+
+      const username = document.getElementById("username").value;
+      const loginPassword = document.getElementById("login-password").value;
+
+      const user = users.find(user => user.username === username && user.password === loginPassword);
+
+      if (user) {
+        alert("Login realizado com sucesso!");
+        localStorage.setItem("loggedInUser", username); // Salva o usuário logado
+        document.getElementById("login-screen").style.display = "none";
+        document.getElementById("password-manager").style.display = "block";
+        displayPasswords();
+      } else {
+        alert("Usuário ou senha incorretos!");
+      }
+    });
+
+    // Função para cadastrar novos usuários
+    document.getElementById("register-form").addEventListener("submit", function (event) {
+      event.preventDefault();
+
+      const username = document.getElementById("register-username").value;
+      const registerPassword = document.getElementById("register-password").value;
+
+      const userExists = users.some(user => user.username === username);
+
+      if (userExists) {
+        alert("Usuário já cadastrado!");
+      } else {
+        users.push({ username, password: registerPassword });
+        localStorage.setItem("users", JSON.stringify(users));
+        alert("Cadastro realizado com sucesso! Agora faça login.");
+        document.getElementById("register-screen").style.display = "none";
+        document.getElementById("login-screen").style.display = "flex";
+      }
+    });
+
+    // Alternar entre login e cadastro
+    document.getElementById("show-register").addEventListener("click", function () {
+      document.getElementById("login-screen").style.display = "none";
+      document.getElementById("register-screen").style.display = "flex";
+    });
+
+    document.getElementById("show-login").addEventListener("click", function () {
+      document.getElementById("register-screen").style.display = "none";
+      document.getElementById("login-screen").style.display = "flex";
+    });
+
+    // Função para sair (voltar para o login)
+    document.getElementById("logout-button").addEventListener("click", function () {
+      localStorage.removeItem("loggedInUser"); // Remove o usuário logado
+      document.getElementById("password-manager").style.display = "none";
+      document.getElementById("login-screen").style.display = "flex";
+      alert("Você saiu com sucesso!");
+    });
+
+    // Funções do Gerenciador de Senhas
+    document.getElementById("password-form").addEventListener("submit", function (event) {
+      event.preventDefault();
+
+      const siteName = document.getElementById("site-name").value;
+      const password = document.getElementById("password").value;
+      const category = document.getElementById("category").value;
+
+      const passwordItem = { siteName, password, category };
+
+      const loggedInUser = localStorage.getItem("loggedInUser");
+      let savedPasswords = JSON.parse(localStorage.getItem(`passwords_${loggedInUser}`)) || [];
+      savedPasswords.push(passwordItem);
+      localStorage.setItem(`passwords_${loggedInUser}`, JSON.stringify(savedPasswords));
+
+      displayPasswords();
+
+      document.getElementById("password-form").reset();
+    });
+
+    // Função para exibir senhas na tela
+    function displayPasswords() {
+      const passwordList = document.getElementById("password-list");
+      passwordList.innerHTML = "";
+
+      const loggedInUser = localStorage.getItem("loggedInUser");
+      const savedPasswords = JSON.parse(localStorage.getItem(`passwords_${loggedInUser}`)) || [];
+
+      savedPasswords.forEach((item, index) => {
+        const passwordDiv = document.createElement("div");
+        passwordDiv.className = "password-item";
+        passwordDiv.innerHTML = `
+          <strong>${item.siteName}</strong> (${item.category}): ${item.password}
+          <button onclick="deletePassword(${index})">Excluir</button>
+        `;
+        passwordList.appendChild(passwordDiv);
+      });
+    }
+
+    // Função para deletar uma senha
+    function deletePassword(index) {
+      const loggedInUser = localStorage.getItem("loggedInUser");
+      let savedPasswords = JSON.parse(localStorage.getItem(`passwords_${loggedInUser}`)) || [];
+      savedPasswords.splice(index, 1);
+      localStorage.setItem(`passwords_${loggedInUser}`, JSON.stringify(savedPasswords));
+      displayPasswords();
+    }
+
+    // Função para gerar uma senha forte
+    function generateStrongPassword() {
+      const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+~`|}{[]:;?><,./-=";
+      let password = "";
+      for (let i = 0; i < 12; i++) {
+        const randomIndex = Math.floor(Math.random() * charset.length);
+        password += charset[randomIndex];
+      }
+      return password;
+    }
+
+    // Adicionando evento ao botão de gerar senha
+    document.getElementById("generate-password").addEventListener("click", function() {
+      const generatedPassword = generateStrongPassword();
+      document.getElementById("generated-password").value = generatedPassword;
+      document.getElementById("password").value = generatedPassword;
+    });
+
+    // Inicializando a exibição das senhas ao carregar a página
+    displayPasswords();
+  </script>
+</body>
+</html>
